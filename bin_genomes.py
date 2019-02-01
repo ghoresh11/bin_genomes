@@ -8,6 +8,11 @@ import shutil
 from collections import Counter
 import networkx as nx
 import argparse
+import random
+import string
+from Bio.SeqIO.FastaIO import SimpleFastaParser
+from Bio.Seq import translate
+from Bio.Seq import reverse_complement
 
 
 class Error (Exception):
@@ -33,6 +38,7 @@ def qc_fasta(fasta_file, qc, out, name=""):
         out.write(name + "," + str(num_contigs) + "," + str(length) + "\n")
         return False
     return True
+
 
 def qc_genomes(job_id, genomes_file, out_dir, args, gff, verbose):
     ''' Go over genomes in genome file
@@ -62,13 +68,14 @@ def qc_genomes(job_id, genomes_file, out_dir, args, gff, verbose):
     log.close()
     return new_loc_to_old_loc
 
+
 def gff_to_fasta(gff_file, fasta_file, protein_coding=False, qc=None, log=None):
     '''Convert a gff file with the appended FASTA to protein/all fasta file
     gff_file = input gff file
     fasta_file = output file
     output: a protein coding FASTA file OR nucleotide FASTA file'''
-    out_tmp = ''.join(random.choice(string.ascii_lowercase
-                                    + string.ascii_uppercase + string.digits) for _ in range(7)) + "_fasta.fa"
+    out_tmp = ''.join(random.choice(string.ascii_lowercase +
+                                    string.ascii_uppercase + string.digits) for _ in range(7)) + "_fasta.fa"
     out = open(out_tmp, "w")
     contigs = {}
     with open(gff_file) as f:
@@ -230,8 +237,10 @@ def bin(job_id, out_dir, distance, species_threshold, fasta_loc_to_gff_loc, verb
                 line, cluster_network, distance)
 
     # get the largest connected component
-    species_cc = sorted(nx.connected_components(species_network), key=len, reverse=True)[0]
-    clusters_ccs = sorted(nx.connected_components(cluster_network), key=len, reverse=True)
+    species_cc = sorted(nx.connected_components(
+        species_network), key=len, reverse=True)[0]
+    clusters_ccs = sorted(nx.connected_components(
+        cluster_network), key=len, reverse=True)
 
     # write the output file, ignore isolates which don't
     # have a species cluster of "species_cluster"
@@ -242,11 +251,11 @@ def bin(job_id, out_dir, distance, species_threshold, fasta_loc_to_gff_loc, verb
         with open(job_id + "_contaminents.txt", "w") as out2:
             for c in clusters_ccs:
                 for genome in c:
-                    if genome not in species_cc: ## contaminent
+                    if genome not in species_cc:  # contaminent
                         out2.write(fasta_loc_to_gff_loc[genome] + "\n")
                         continue
-                    out.write(fasta_loc_to_gff_loc[genome] + "," +
-                              str(bin_id) + "\n")
+                    out.write(fasta_loc_to_gff_loc[genome] + ","
+                              + str(bin_id) + "\n")
                 bin_id += 1
     return
 
@@ -287,22 +296,21 @@ def run(args):
     return
 
 
-
 def init():
     parser = argparse.ArgumentParser(
         description='Bin the input genomes according to sequence identity',
         usage='python bin_genomes.py [options] <job_id> <genomes_file>')
     parser.add_argument('--gff',  action='store_true',
-                                help='Set if input in GFF format [Default: FASTA]', default=False)
+                        help='Set if input in GFF format [Default: FASTA]', default=False)
     parser.add_argument('--species_cutoff', type=float,
-                            help='Maximum distance between species to remove contaminents [%(default)s]', default=0.04, metavar='FLOAT')
+                        help='Maximum distance between species to remove contaminents [%(default)s]', default=0.04, metavar='FLOAT')
     parser.add_argument('--distance', type=float,
-                            help='Maximum distance between two genomes to be considered in same bin [%(default)s]', default=0.005, metavar='FLOAT')
-    parser.add_argument('--max_contigs', type=int,
+                        help='Maximum distance between two genomes to be considered in same bin [%(default)s]', default=0.005, metavar='FLOAT')
+    parser.add_argument('--max_contigs', type=int, metavar='INT',
                         help='Skip genomes with more than num_contigs [%(default)s]', default=600)
-    parser.add_argument('--min_length', type=float,
+    parser.add_argument('--min_length', type=float, metavar='FLOAT',
                         help='Skip genomes shorter than this length, in MBP [%(default)s]', default=4)
-    parser.add_argument('--max_length', type=float,
+    parser.add_argument('--max_length', type=float, metavar='FLOAT',
                         help='Skip genomes longer than this length, in MBP [%(default)s]', default=6)
     parser.add_argument('--cpu', type=int,
                         help='Number of CPUs to use [%(default)s]', default=16, metavar='INT')
@@ -310,7 +318,8 @@ def init():
                         help='Keep temporary files', default=False)
     parser.add_argument('--verbose', action='store_true',
                         help='Verbose output while run', default=False)
-    parser.add_argument('--debug', action='store_true', help='Set for Debug mode (doesnt run MASH)', default=False)
+    parser.add_argument('--debug', action='store_true',
+                        help='Set for Debug mode (doesnt run MASH)', default=False)
     parser.add_argument(
         '--method', type=str, help='Method to bin the genomes. Options: (MASH), [%(default)s]', default="MASH", metavar='STR')
     parser.add_argument(
@@ -321,6 +330,7 @@ def init():
     args = vars(parser.parse_args())
     run(args)
     return
+
 
 if __name__ == "__main__":
     init()
